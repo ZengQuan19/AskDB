@@ -1,6 +1,26 @@
-#虚拟环境
+# 虚拟环境
 .venv/
 venv/
 
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# IDE
 .idea/
-idea/
+.vscode/
+
+# 运行时数据（SQLite 元数据库、日志）
+instance/
+*.log
+
+# 密钥（保留示例文件）
+.env
+.env.*
+!.env.example
+
+# 测试缓存
+.pytest_cache/
+.coverage
+htmlcov/
