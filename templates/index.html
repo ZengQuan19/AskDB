@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+</head>
+<body>
+<!--标题及提问-->
+    <h1>{{ title }}</h1>
+    <form method="get" action="/">
+        <input type="text" name="q" placeholder="请输入问题" size="50" value="{{ q }}">
+        <button type="submit">提问</button>
+    </form>
+<!--回答显示-->
+    {% if q %}
+        <h3>问题:{{ q }}</h3>
+    {% endif %}
+    {% if answer %}
+        <p>答案:{{ answer }}</p>
+    {% endif %}
+</body>
+</html>

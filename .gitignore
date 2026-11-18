@@ -11,14 +11,15 @@ __pycache__/
 .idea/
 .vscode/
 
-# 运行时数据（SQLite 元数据库、日志）
+# 运行时数据
 instance/
 *.log
 
-# 密钥（保留示例文件）
+# 密钥（示例文件除外）
 .env
 .env.*
 !.env.example
+llm_config.py
 
 # 测试缓存
 .pytest_cache/
