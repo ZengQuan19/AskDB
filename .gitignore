@@ -1,27 +1,51 @@
-# 虚拟环境
+# ---------------- 虚拟环境 ----------------
 .venv/
 venv/
+env/
 
-# Python 缓存
+# ---------------- Python 缓存 ----------------
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+.eggs/
+build/
+dist/
 
-# IDE
+# ---------------- IDE ----------------
 .idea/
 .vscode/
+*.swp
 
-# 运行时数据
+# ---------------- 运行时数据 ----------------
+# instance/ 下有 config.json（含 API Key）、db_list.json（含数据库密码）等，
+# 一律不进版本库；应用首次运行时会自动创建缺失的文件
 instance/
 *.log
+*.tmp
+*.json.tmp
 
-# 密钥（示例文件除外）
+# SQLite 附属文件
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ---------------- 密钥（示例文件除外） ----------------
 .env
 .env.*
 !.env.example
+# 旧版密钥文件：现在配置已迁到 instance/config.json，保留忽略防止误提交
 llm_config.py
 
-# 测试缓存
+# ---------------- 测试 / 检查缓存 ----------------
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+
+# ---------------- 系统垃圾 ----------------
+.DS_Store
+Thumbs.db
+desktop.ini

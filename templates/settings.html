@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AskDB | 设置页</title>
+</head>
+<body>
+    <h1>AskDB | 设置</h1>
+    <button type="button" onclick="location.href='{{ url_for('index') }}'">主页</button>
+    <h3>当前已连接的数据库:</h3>
+    {% if not DB_list %}
+        <p>无</p>
+    {% else %}
+        <p>测试</p>
+    {% endif %}
+
+</body>
+</html>
