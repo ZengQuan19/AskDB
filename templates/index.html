@@ -2,21 +2,138 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
+    <style>
+        :root {
+            --bg: #f5f6f8; --card: #fff; --line: #e3e6eb;
+            --text: #1f2329; --dim: #8a919c; --accent: #2f6feb;
+            --ok: #1a7f45; --err: #c0392b;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font: 14px/1.7 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line);
+        }
+        .brand { font-size: 17px; font-weight: 600; }
+        .ver { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: 6px; }
+        main { max-width: 880px; margin: 28px auto 60px; padding: 0 20px; }
+        form.ask { display: flex; gap: 10px; margin-bottom: 14px; }
+        form.ask input {
+            flex: 1; padding: 10px 14px; border: 1px solid var(--line);
+            border-radius: 8px; font: inherit; outline: none; background: #fff;
+        }
+        form.ask input:focus { border-color: var(--accent); }
+        .btn {
+            padding: 10px 20px; border: 1px solid var(--accent); border-radius: 8px;
+            background: var(--accent); color: #fff; font: inherit; cursor: pointer;
+        }
+        .btn:hover { background: #2559c4; }
+        .btn.plain { background: #fff; color: var(--text); border-color: var(--line); }
+        .btn.plain:hover { border-color: #c6ccd6; }
+        .btn.mini { padding: 4px 12px; font-size: 12.5px; }
+        /* 记忆条 */
+        .membar {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            font-size: 12.5px; color: var(--dim); margin-bottom: 18px;
+        }
+        .pill {
+            padding: 2px 10px; border-radius: 999px; background: #eef1f6; color: #4b5563;
+        }
+        .flash { padding: 9px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+        .flash-ok { background: #e8f3ec; color: var(--ok); border: 1px solid #c9e4d4; }
+        .flash-error { background: #fdecea; color: var(--err); border: 1px solid #f5c6c0; }
+        .card {
+            background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            padding: 18px 20px; margin-bottom: 16px;
+        }
+        .turn-no { font-size: 11.5px; color: var(--dim); letter-spacing: .5px; }
+        .q { font-weight: 600; margin: 2px 0 10px; }
+        .q::before { content: "问 "; color: var(--accent); font-weight: 700; }
+        .a { white-space: pre-wrap; word-break: break-word; }
+        details.trace { margin-top: 14px; font-size: 12.5px; color: var(--dim); }
+        details.trace summary { cursor: pointer; }
+        .step {
+            margin: 8px 0; padding: 8px 10px; background: #fafbfc;
+            border: 1px solid var(--line); border-radius: 6px;
+        }
+        .step code {
+            display: block; white-space: pre-wrap; word-break: break-all;
+            font-family: Consolas, monospace; color: #4b5563; margin-top: 4px;
+        }
+        .bad { color: var(--err); }
+        .ok { color: var(--ok); }
+        .empty { color: var(--dim); text-align: center; padding: 34px 10px; }
+    </style>
 </head>
 <body>
-<!--标题及提问-->
-    <h1>{{ title }}</h1>
-    <form method="get" action="/">
-        <input type="text" name="q" placeholder="请输入问题" size="50" value="{{ q }}">
-        <button type="submit">提问</button>
+
+<header class="topbar">
+    <div class="brand">问数 AskDB<span class="ver">v{{ version }}</span></div>
+    <a class="btn plain" href="{{ url_for('settings') }}">设置</a>
+</header>
+
+<main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <form class="ask" method="post" action="{{ url_for('ask') }}">
+        <input type="text" name="q" placeholder="用中文提问，例如：上月华东区销售额是多少？" autofocus autocomplete="off">
+        <button class="btn" type="submit">提问</button>
     </form>
-<!--回答显示-->
-    {% if q %}
-        <h3>问题:{{ q }}</h3>
+
+    <div class="membar">
+        <span class="pill">记忆 {{ turns|length }} / {{ max_rounds }} 轮</span>
+        <span>追问时会带上最近 {{ max_rounds }} 轮对话；更早的自动遗忘。</span>
+        {% if turns %}
+            <form method="post" action="{{ url_for('reset') }}" style="margin-left:auto"
+                  onsubmit="return confirm('确定清空这 {{ turns|length }} 轮对话记录？');">
+                <button class="btn plain mini" type="submit">🗑 重置对话</button>
+            </form>
+        {% endif %}
+    </div>
+
+    {% if not turns %}
+        <div class="card empty">
+            还没有对话。试试问「practice 库里一共有多少笔订单？」
+        </div>
     {% endif %}
-    {% if answer %}
-        <p>答案:{{ answer }}</p>
-    {% endif %}
+
+    {% for turn in turns %}
+        <div class="card">
+            <div class="turn-no">第 {{ loop.index }} 轮 · {{ turn.time }}</div>
+            <div class="q">{{ turn.q }}</div>
+            <div class="a">{{ turn.a }}</div>
+
+            {% if turn.trace %}
+                <details class="trace">
+                    <summary>
+                        查询过程（{{ turn.trace|length }} 次工具调用 / {{ turn.usage.total_tokens if turn.usage else '?' }} tokens）
+                    </summary>
+                    {% for step in turn.trace %}
+                        <div class="step">
+                            <b>{{ step.tool }}</b>
+                            {% if step.ok %}
+                                <span class="ok">成功</span>
+                                {% if step.row_count is not none %}· {{ step.row_count }} 行{% endif %}
+                            {% else %}
+                                <span class="bad">失败</span>：{{ step.error }}
+                            {% endif %}
+                            {% if step.sql %}<code>{{ step.sql }}</code>{% endif %}
+                        </div>
+                    {% endfor %}
+                </details>
+            {% endif %}
+        </div>
+    {% endfor %}
+</main>
+
 </body>
 </html>

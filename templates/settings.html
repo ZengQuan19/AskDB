@@ -2,17 +2,484 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>AskDB | 设置页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AskDB | 设置</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --card: #ffffff;
+            --line: #e3e6eb;
+            --text: #1f2329;
+            --dim: #8a919c;
+            --accent: #2f6feb;
+            --ok: #1a7f45;
+            --err: #c0392b;
+        }
+        * { box-sizing: border-box; }
+        /* 必须显式声明：作者样式里的 display:flex 会盖掉浏览器对 [hidden] 的默认 display:none */
+        [hidden] { display: none !important; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line);
+        }
+        .brand { font-size: 17px; font-weight: 600; }
+        .ver { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: 6px; }
+        main { max-width: 1080px; margin: 24px auto 60px; padding: 0 20px; }
+        .card {
+            background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            padding: 18px 20px; margin-bottom: 16px;
+        }
+        .card h2 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+        .hint { color: var(--dim); font-size: 13px; }
+        .dim { color: var(--dim); }
+        .warn { color: var(--err); font-size: 12px; margin: 10px 0 0; }
+        .count {
+            display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px;
+            background: #eef1f6; border-radius: 10px; font-size: 12px; text-align: center;
+            color: var(--dim); font-weight: 400;
+        }
+        /* 管理员条 */
+        .adminbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .badge {
+            padding: 2px 10px; border-radius: 999px; font-size: 12px;
+            background: #eef1f6; color: var(--dim);
+        }
+        .badge-admin { background: #e8f3ec; color: var(--ok); }
+        form.inline { display: inline-flex; gap: 8px; margin: 0; }
+        input[type=password], input[type=text] {
+            padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+            font: inherit; outline: none;
+        }
+        input[type=password]:focus { border-color: var(--accent); }
+        .btn {
+            padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px;
+            background: #fff; color: var(--text); font: inherit; cursor: pointer;
+            text-decoration: none; display: inline-block;
+        }
+        .btn:hover { border-color: #c6ccd6; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2559c4; }
+        .mini {
+            padding: 1px 8px; margin-left: 6px; font-size: 12px; cursor: pointer;
+            border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--dim);
+        }
+        .mini:hover { color: var(--accent); border-color: var(--accent); }
+        /* 表格 */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+        th { font-size: 12px; font-weight: 500; color: var(--dim); background: #fafbfc; }
+        tr:last-child td { border-bottom: none; }
+        .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+        .tag {
+            padding: 1px 8px; border-radius: 4px; font-size: 12px;
+            background: #eef1f6; color: #4b5563;
+        }
+        .tag-mysql { background: #e8f0fe; color: #2559c4; }
+        .tag-sqlite { background: #fdf0e3; color: #a35a00; }
+        .locked { color: var(--dim); font-size: 12.5px; }
+        .secret { font-family: Consolas, monospace; letter-spacing: 1px; }
+        .small { font-size: 11.5px; margin-top: 2px; }
+        .btn:disabled { opacity: .45; cursor: not-allowed; }
+        .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .switch input { width: 16px; height: 16px; cursor: pointer; }
+        td .inline + .inline { margin-top: 6px; }
+        /* 新增数据源 */
+        details.card > summary {
+            cursor: pointer; font-size: 15px; font-weight: 600; list-style: none;
+            display: flex; align-items: center; gap: 8px;
+        }
+        details.card > summary::-webkit-details-marker { display: none; }
+        details.card > summary::before { content: "▸"; color: var(--dim); transition: transform .15s; }
+        details.card[open] > summary::before { transform: rotate(90deg); }
+        details.card[open] > summary { margin-bottom: 16px; }
+        .addform .grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+        .addform label {
+            display: flex; flex-direction: column; gap: 4px;
+            font-size: 12px; color: var(--dim);
+        }
+        .addform input, .addform select {
+            padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+            font: inherit; color: var(--text); min-width: 170px; background: #fff;
+        }
+        .addform input:focus, .addform select:focus { border-color: var(--accent); outline: none; }
+        .addform .wide { flex: 1 1 100%; }
+        .danger { color: var(--err); border-color: #f0cdc8; }
+        .danger:hover { border-color: var(--err); color: var(--err); }
+        /* 问号帮助：鼠标悬停显示说明，纯 CSS，不依赖 JS */
+        .help {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 15px; height: 15px; border-radius: 50%; flex: none;
+            background: #e6eaf0; color: #6b7280;
+            font-size: 11px; font-weight: 700; line-height: 1; cursor: help;
+            position: relative; user-select: none;
+        }
+        .help::after {
+            content: attr(data-tip);
+            position: absolute; left: -6px; bottom: 160%;
+            width: 236px; max-width: 60vw; padding: 8px 10px;
+            background: #1f2329; color: #fff; border-radius: 6px;
+            font-size: 12px; font-weight: 400; line-height: 1.55; text-align: left;
+            white-space: normal; opacity: 0; pointer-events: none;
+            transition: opacity .12s; z-index: 30;
+        }
+        .help::before {
+            content: ""; position: absolute; left: 2px; bottom: 128%;
+            border: 5px solid transparent; border-top-color: #1f2329;
+            opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 30;
+        }
+        .help:hover::after, .help:hover::before { opacity: 1; }
+        .fld { display: inline-flex; align-items: center; gap: 5px; }
+        .status { font-size: 12px; margin-top: 10px; }
+        .ok-text { color: var(--ok); }
+        .bad-text { color: var(--err); }
+        /* 空状态 */
+        .empty { text-align: center; padding: 28px 10px; color: var(--dim); }
+        .empty code {
+            background: #eef1f6; padding: 1px 6px; border-radius: 4px;
+            font-family: Consolas, monospace; font-size: 12.5px; color: #4b5563;
+        }
+        /* 提示条 */
+        .flashes { margin-bottom: 16px; }
+        .flash {
+            padding: 9px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+            border: 1px solid transparent;
+        }
+        .flash-ok { background: #e8f3ec; border-color: #c9e4d4; color: var(--ok); }
+        .flash-error { background: #fdecea; border-color: #f5c6c0; color: var(--err); }
+        /* 预留区 */
+        .placeholder { border: 1px dashed #d6dbe3; background: #fbfcfd; }
+        .placeholder .btn { opacity: .55; }
+        .slots { display: flex; gap: 10px; flex-wrap: wrap; }
+        .slot { flex: 1 1 180px; padding: 12px; border: 1px dashed #d6dbe3; border-radius: 8px; }
+        .slot b { display: block; font-size: 13px; margin-bottom: 4px; }
+        .slot span { font-size: 12px; color: var(--dim); }
+    </style>
 </head>
 <body>
-    <h1>AskDB | 设置</h1>
-    <button type="button" onclick="location.href='{{ url_for('index') }}'">主页</button>
-    <h3>当前已连接的数据库:</h3>
-    {% if not DB_list %}
-        <p>无</p>
-    {% else %}
-        <p>测试</p>
+
+<header class="topbar">
+    <div class="brand">问数 AskDB<span class="ver">v{{ version }}</span></div>
+    <a class="btn" href="{{ url_for('index') }}">← 返回主页</a>
+</header>
+
+<main>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flashes">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- ========== 权限状态条 ========== -->
+    <section class="card adminbar">
+        {% if is_admin %}
+            <span class="badge badge-admin">👑 管理员模式</span>
+            <span class="hint">敏感信息已解锁，密码以明文显示在下方表格中</span>
+            <form class="inline" method="post" action="{{ url_for('settings_admin_exit') }}">
+                <button class="btn" type="submit">退出管理员</button>
+            </form>
+        {% else %}
+            <span class="badge">访客</span>
+            <span class="hint">数据库密码等敏感信息仅管理员可见</span>
+            <form class="inline" method="post" action="{{ url_for('settings_admin') }}">
+                <input type="password" name="password" placeholder="管理员口令"
+                       autocomplete="current-password" required>
+                <button class="btn btn-primary" type="submit">进入管理员模式</button>
+            </form>
+        {% endif %}
+    </section>
+    {% if admin_default_warning %}
+        <p class="warn">⚠ 当前使用的是默认口令 <code>admin</code>，部署到线上前请设置环境变量 <code>ADMIN_PASSWORD</code>。</p>
     {% endif %}
+
+    <!-- ========== 模型连接 ========== -->
+    <section class="card">
+        <h2>模型连接</h2>
+        <p class="status">
+            当前 Key：
+            {% if llm.configured %}
+                <b class="ok-text">已配置</b>（<span class="mono">{{ llm.masked }}</span>）
+            {% else %}
+                <b class="bad-text">未配置</b> —— 不填的话问数功能无法工作
+            {% endif %}
+            ｜模型：<span class="mono">{{ llm.model }}</span>
+        </p>
+
+        {% if is_admin %}
+            <form class="addform" method="post" action="{{ url_for('settings_llm') }}" style="margin-top:14px">
+                <div class="grid">
+                    <label class="wide">
+                        <span class="fld">API Key
+                            <span class="help" data-tip="调用大模型接口用的密钥。保存后页面只显示尾部 4 位；留空提交表示保持原值不变（不是清空）。">?</span>
+                        </span>
+                        <input name="api_key" type="password" autocomplete="new-password"
+                               placeholder="{{ llm.masked or 'sk-...' }}（留空则不修改）">
+                    </label>
+                </div>
+                <div class="grid">
+                    <label class="wide">
+                        <span class="fld">Base URL
+                            <span class="help" data-tip="接口地址。DeepSeek 官方为 https://api.deepseek.com；换成兼容 OpenAI 协议的其它服务时改这里，不要带结尾斜杠。">?</span>
+                        </span>
+                        <input name="base_url" value="{{ llm.base_url }}" placeholder="https://api.deepseek.com">
+                    </label>
+                </div>
+                <div class="grid">
+                    <label>
+                        <span class="fld">模型名
+                            <span class="help" data-tip="例如 deepseek-chat、deepseek-flash。注意：模型必须支持 function calling（工具调用），否则问数功能用不了。">?</span>
+                        </span>
+                        <input name="model" value="{{ llm.model }}" placeholder="deepseek-chat">
+                    </label>
+                    <label>
+                        <span class="fld">请求超时（秒）
+                            <span class="help" data-tip="单次请求最多等多久，范围 5~300。模型返回慢或问题很复杂时可以调大。">?</span>
+                        </span>
+                        <input name="timeout" value="{{ llm.timeout }}" placeholder="90">
+                    </label>
+                </div>
+                <button class="btn btn-primary" type="submit">保存模型配置</button>
+                <span class="hint" style="margin-left:10px">保存后立即生效，不用重启。</span>
+            </form>
+        {% else %}
+            <p class="hint" style="margin-top:12px">只有管理员可以查看/修改模型连接配置。</p>
+        {% endif %}
+    </section>
+
+    <!-- ========== 生成参数（所有人可调） ========== -->
+    <section class="card">
+        <h2>生成参数</h2>
+        <form class="addform" method="post" action="{{ url_for('settings_llm_tuning') }}">
+            <div class="grid">
+                <label>
+                    <span class="fld">Temperature
+                        <span class="help" data-tip="回答的随机性：0 最稳定、2 最发散。问数场景建议 0.1~0.3，太高容易算错、口径飘。范围 0~2。">?</span>
+                    </span>
+                    <input name="temperature" value="{{ llm.temperature }}" placeholder="0.2">
+                </label>
+                <label>
+                    <span class="fld">最大工具轮数
+                        <span class="help" data-tip="一次提问最多允许 AI 连续调几次工具，范围 1~8。太小可能查不全就停了；太大既慢又费 token。">?</span>
+                    </span>
+                    <input name="max_rounds" value="{{ llm.max_rounds }}" placeholder="4">
+                </label>
+            </div>
+            <button class="btn btn-primary" type="submit">保存生成参数</button>
+            <span class="hint" style="margin-left:10px">这一组对所有使用者开放。</span>
+        </form>
+    </section>
+
+    <!-- ========== 数据源列表 ========== -->
+    <section class="card">
+        <h2>已配置的数据源 <span class="count">{{ db_rows|length }}</span></h2>
+
+        {% if db_rows %}
+            <table>
+                <thead>
+                <tr>
+                    <th style="width:15%">名称</th>
+                    <th style="width:8%">类型</th>
+                    <th style="width:24%">连接地址</th>
+                    <th style="width:10%">账号</th>
+                    <th style="width:14%">密码</th>
+                    <th style="width:17%">结构</th>
+                    <th style="width:12%">操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in db_rows %}
+                    <tr>
+                        <td>
+                            <b>{{ row.db }}</b>
+                            {% if row.note %}<div class="dim small">{{ row.note }}</div>{% endif %}
+                        </td>
+                        <td><span class="tag tag-{{ row.type }}">{{ row.type }}</span></td>
+                        <td class="mono">{{ row.address }}</td>
+                        <td class="mono">{{ row.user }}</td>
+                        <td>
+                            {% if row.masked %}
+                                <span class="locked">🔒 需管理员权限</span>
+                            {% elif row.has_secret %}
+                                {% if row.secret %}
+                                    <span class="secret" data-real="{{ row.secret }}">••••••••</span>
+                                    <button class="mini" type="button" onclick="toggleSecret(this)">显示</button>
+                                {% else %}
+                                    <span class="dim">（空密码）</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="dim">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.has_schema %}
+                                <span class="tag tag-{{ row.type }}">{{ row.dialect }}</span>
+                                <div class="dim small">{{ row.schema_info }}</div>
+                            {% else %}
+                                <span class="dim">未生成</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form class="inline" method="post" action="{{ url_for('settings_test') }}">
+                                <input type="hidden" name="db" value="{{ row.db }}">
+                                <button class="btn mini" type="submit">测试连接</button>
+                            </form>
+                            {% if can_update %}
+                                <form class="inline" method="post" action="{{ url_for('settings_db_update') }}">
+                                    <input type="hidden" name="db" value="{{ row.db }}">
+                                    <button class="btn mini" type="submit">更新结构</button>
+                                </form>
+                            {% else %}
+                                <button class="btn mini" type="button" disabled title="仅管理员可更新">
+                                    🔒 更新结构
+                                </button>
+                            {% endif %}
+                            {% if is_admin %}
+                                <form class="inline" method="post" action="{{ url_for('settings_db_remove') }}"
+                                      onsubmit="return confirm('确定删除数据源「{{ row.db }}」？它的结构缓存也会一起删掉。');">
+                                    <input type="hidden" name="db" value="{{ row.db }}">
+                                    <button class="btn mini danger" type="submit">删除</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty">
+                <p>还没有配置任何数据源。</p>
+                <p class="hint">
+                    {% if is_admin %}
+                        展开下面的「➕ 新增数据源」填一个吧，添加后会自动保存，重启不丢。
+                    {% else %}
+                        请登录管理员后在下方「➕ 新增数据源」里添加。
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- ========== 新增数据源 ========== -->
+    <details class="card">
+        <summary>➕ 新增数据源 <span class="hint" style="font-weight:400">（仅管理员）</span></summary>
+
+        {% if is_admin %}
+            <form class="addform" method="post" action="{{ url_for('settings_db_add') }}">
+                <div class="grid">
+                    <label>名称（唯一）
+                        <input name="db" required placeholder="例如 订单库">
+                    </label>
+                    <label>类型
+                        <select name="type" id="dbType" onchange="toggleTypeFields()">
+                            <option value="sqlite">SQLite</option>
+                            <option value="mysql">MySQL</option>
+                        </select>
+                    </label>
+                    <label>备注（可选）
+                        <input name="note" placeholder="随便写点说明">
+                    </label>
+                </div>
+
+                <div class="grid" id="sqliteFields">
+                    <label class="wide">文件路径（必须已存在，不会自动建库）
+                        <input name="path" placeholder="C:\data\shop.db">
+                    </label>
+                </div>
+
+                <div class="grid" id="mysqlFields" hidden>
+                    <label>主机
+                        <input name="host" value="127.0.0.1">
+                    </label>
+                    <label>端口
+                        <input name="port" value="3306">
+                    </label>
+                    <label>用户名
+                        <input name="user" placeholder="read_only">
+                    </label>
+                    <label>密码
+                        <input name="password" type="password" placeholder="留空表示无密码">
+                    </label>
+                    <label>数据库名
+                        <input name="database" placeholder="practice">
+                    </label>
+                    <label>字符集
+                        <input name="charset" value="utf8mb4">
+                    </label>
+                </div>
+
+                <button class="btn btn-primary" type="submit">添加</button>
+                <span class="hint" style="margin-left:10px">
+                    添加后会自动落盘到 <code>instance/db_list.json</code>，重启不丢。
+                </span>
+            </form>
+        {% else %}
+            <p class="hint">需要管理员权限才能新增数据源。</p>
+        {% endif %}
+    </details>
+
+    <!-- ========== 管理员：结构更新权限开关 ========== -->
+    {% if is_admin %}
+        <section class="card">
+            <h2>权限 · 谁可以更新数据库结构</h2>
+            <form method="post" action="{{ url_for('settings_permission') }}">
+                <label class="switch">
+                    <input type="checkbox" name="allow_non_admin_update"
+                           {% if allow_guest_update %}checked{% endif %}>
+                    <span>允许非管理员点击「更新结构」</span>
+                </label>
+                <button class="btn btn-primary" type="submit" style="margin-left:12px">保存</button>
+            </form>
+            <p class="hint" style="margin-top:12px">
+                当前：<b>{{ '已开放给所有人' if allow_guest_update else '仅管理员' }}</b>
+                ｜结构文件：<code>{{ schema_file }}</code>（所有库存在同一个文件里，重新生成时整条替换）
+            </p>
+        </section>
+    {% endif %}
+
+    <!-- ========== 预留区：先占位，接口已就绪 ========== -->
+    <section class="card placeholder">
+        <h2>还没做的</h2>
+        <div class="slots">
+            <div class="slot">
+                <b>✔ 切换当前数据源</b>
+                <span>问数时默认查询哪个库（现在会把所有已生成结构的库一起给 AI）</span>
+            </div>
+            <div class="slot">
+                <b>🔐 密码加密存储</b>
+                <span>现在 <code>instance/db_list.json</code> 里是明文</span>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    // 密码「显示/隐藏」：真实值只在管理员页面存在，这里纯粹是视觉切换
+    function toggleSecret(btn) {
+        const span = btn.previousElementSibling;
+        const hidden = span.dataset.hidden !== "0";
+        span.textContent = hidden ? span.dataset.real : "••••••••";
+        span.dataset.hidden = hidden ? "0" : "1";
+        btn.textContent = hidden ? "隐藏" : "显示";
+    }
+
+    // 新增表单：按类型切换 SQLite / MySQL 字段组
+    function toggleTypeFields() {
+        const type = document.getElementById("dbType").value;
+        document.getElementById("sqliteFields").hidden = (type !== "sqlite");
+        document.getElementById("mysqlFields").hidden = (type !== "mysql");
+    }
+</script>
 
 </body>
 </html>
