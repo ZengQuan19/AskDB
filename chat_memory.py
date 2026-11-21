@@ -17,6 +17,8 @@ from datetime import datetime
 # 记忆轮数：一问一答算一轮
 MAX_ROUNDS = 3
 
+#TODO:对话轮次按照最进一轮->最远一轮排序
+
 _LOCK = threading.Lock()
 _STORE = {}          # session_id -> deque[{q, a, trace, usage, time}]
 
