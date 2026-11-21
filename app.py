@@ -11,6 +11,8 @@ import uuid
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 
 from agent import run_agent
+from async_tasks import QueueFull, stats as queue_stats, submit as submit_task
+from async_tasks import snapshot as task_snapshot
 from chat_memory import MAX_ROUNDS as MEMORY_ROUNDS
 from chat_memory import add_turn, reset as reset_memory, turns as memory_turns
 from config_store import ensure_runtime_files, get_llm_config, mask_key, save_llm, save_tuning
@@ -103,14 +105,32 @@ def index():
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    """提一个新问题：带上最近几轮历史，跑完写回记忆，然后重定向（避免刷新重复提交）。"""
+    """提交提问。
+
+    - 浏览器 fetch（带 X-Requested-With 头）：丢进后台线程池，立刻返回 task_id，
+      前端轮询 /api/task/<id> 拿进度和结果 —— 这就是「异步问答」。
+    - 普通表单提交（JS 被禁用）：退回同步执行，保证功能不残。
+    """
     question = (request.form.get("q") or "").strip()
+    wants_json = request.headers.get("X-Requested-With") == "fetch"
+
     if not question:
+        if wants_json:
+            return jsonify(ok=False, error="请输入问题"), 400
         flash("请输入问题", "error")
         return redirect(url_for("index"))
 
     sid = _sid()
     history = memory_turns(sid)
+
+    if wants_json:
+        try:
+            task_id = submit_task(sid, question, history)
+        except QueueFull as e:
+            return jsonify(ok=False, error=str(e)), 429
+        return jsonify(ok=True, task_id=task_id), 202
+
+    # 同步兜底
     try:
         answer, usage, trace = run_agent(question, history=history)
     except Exception as e:
@@ -120,6 +140,21 @@ def ask():
 
     add_turn(sid, question, answer, trace, usage)
     return redirect(url_for("index"))
+
+
+@app.route("/api/task/<task_id>")
+def api_task(task_id):
+    """轮询任务状态：queued / running / done / error。"""
+    snap = task_snapshot(task_id)
+    if snap is None:
+        return jsonify(ok=False, error="任务不存在或已过期"), 404
+    return jsonify(ok=True, **snap)
+
+
+@app.route("/api/queue")
+def api_queue():
+    """运维用：当前队列压力。"""
+    return jsonify(ok=True, **queue_stats())
 
 
 @app.route("/reset", methods=["POST"])

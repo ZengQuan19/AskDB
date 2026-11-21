@@ -30,7 +30,14 @@ DEFAULT_CONFIG = {
         "temperature": 0.2,
         "max_rounds": 4,
         "timeout": 90,
-    }
+    },
+    # 服务端并发控制：问答异步任务队列读取这些值（见 async_tasks.py）
+    "server": {
+        "max_concurrent": 4,      # 同时执行几个问答
+        "queue_size": 20,         # 额外允许排队的数量
+        "per_session_limit": 2,   # 单个会话最多几个未完成任务
+        "result_ttl": 600,        # 完成任务保留秒数（前端轮询用）
+    },
 }
 
 # 约束：网页上改的值必须落在这个区间，避免填出 999 度这种灾难

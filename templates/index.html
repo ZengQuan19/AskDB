@@ -68,6 +68,21 @@
         .bad { color: var(--err); }
         .ok { color: var(--ok); }
         .empty { color: var(--dim); text-align: center; padding: 34px 10px; }
+        /* 异步任务进行中 */
+        [hidden] { display: none !important; }
+        .card.pending {
+            display: flex; gap: 14px; align-items: flex-start;
+            border-color: #cfe0ff; background: #f7faff;
+        }
+        .spinner {
+            width: 18px; height: 18px; flex: none; margin-top: 3px;
+            border: 2px solid #cfe0ff; border-top-color: var(--accent);
+            border-radius: 50%; animation: spin .8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pend-q { font-weight: 600; }
+        .pend-msg { color: var(--dim); font-size: 12.5px; }
+        .pend-time { color: var(--dim); font-size: 11.5px; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
@@ -106,6 +121,16 @@
         </div>
     {% endif %}
 
+    <!-- 异步任务进行中的占位卡（由 JS 控制显隐） -->
+    <div class="card pending" id="pending" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="pend-body">
+            <div class="pend-q">正在处理：<span id="pendQ"></span></div>
+            <div class="pend-msg" id="pendMsg">已提交…</div>
+            <div class="pend-time" id="pendTime">0.0s</div>
+        </div>
+    </div>
+
     {% for turn in turns %}
         <div class="card">
             <div class="turn-no">第 {{ loop.index }} 轮 · {{ turn.time }}</div>
@@ -134,6 +159,105 @@
         </div>
     {% endfor %}
 </main>
+
+<script>
+    // 异步问答：提交后立刻拿到 task_id，之后轮询进度；完成再刷新页面渲染新一轮。
+    // 这样几秒到几十秒的模型推理就不会阻塞浏览器（也不会占住 WSGI worker）。
+    (function () {
+        const form = document.querySelector("form.ask");
+        const input = form.querySelector('input[name="q"]');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const pending = document.getElementById("pending");
+        const pendQ = document.getElementById("pendQ");
+        const pendMsg = document.getElementById("pendMsg");
+        const pendTime = document.getElementById("pendTime");
+
+        let clockTimer = null;
+        let pollTimer = null;
+        let startedAt = 0;
+
+        function startClock() {
+            startedAt = Date.now();
+            clearInterval(clockTimer);
+            clockTimer = setInterval(function () {
+                pendTime.textContent = ((Date.now() - startedAt) / 1000).toFixed(1) + "s";
+            }, 100);
+        }
+
+        function stopClock() {
+            clearInterval(clockTimer);
+            clearTimeout(pollTimer);
+        }
+
+        function setBusy(busy) {
+            submitBtn.disabled = busy;
+            input.disabled = busy;
+        }
+
+        function showPending(question) {
+            pendQ.textContent = question;
+            pendMsg.textContent = "已提交，等待执行…";
+            pendMsg.classList.remove("bad");
+            pendTime.textContent = "0.0s";
+            pending.hidden = false;
+            startClock();
+        }
+
+        function fail(message) {
+            stopClock();
+            pendMsg.textContent = "失败：" + message;
+            pendMsg.classList.add("bad");
+            setBusy(false);
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const question = input.value.trim();
+            if (!question || submitBtn.disabled) return;
+
+            setBusy(true);
+            showPending(question);
+
+            try {
+                const resp = await fetch(form.action, {
+                    method: "POST",
+                    headers: { "X-Requested-With": "fetch" },
+                    body: new URLSearchParams({ q: question }),
+                });
+                const data = await resp.json();
+                if (!data.ok) throw new Error(data.error || "提交失败");
+                poll(data.task_id);
+            } catch (err) {
+                fail(err.message || String(err));
+            }
+        });
+
+        function poll(taskId) {
+            pollTimer = setTimeout(async function () {
+                try {
+                    const resp = await fetch("/api/task/" + encodeURIComponent(taskId));
+                    const data = await resp.json();
+                    if (!data.ok) throw new Error(data.error || "任务查询失败");
+
+                    pendMsg.textContent = data.message || "处理中…";
+                    if (data.status === "done") {
+                        stopClock();
+                        pendMsg.textContent = "完成，正在刷新…";
+                        setTimeout(function () { location.reload(); }, 150);
+                        return;
+                    }
+                    if (data.status === "error") {
+                        fail(data.error || "未知错误");
+                        return;
+                    }
+                    poll(taskId);
+                } catch (err) {
+                    fail(err.message || String(err));
+                }
+            }, 800);
+        }
+    })();
+</script>
 
 </body>
 </html>
