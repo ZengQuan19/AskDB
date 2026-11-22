@@ -17,16 +17,31 @@ from datetime import datetime
 # 记忆轮数：一问一答算一轮
 MAX_ROUNDS = 3
 
-#TODO:对话轮次按照最进一轮->最远一轮排序
-
 _LOCK = threading.Lock()
 _STORE = {}          # session_id -> deque[{q, a, trace, usage, time}]
 
 
 def turns(sid):
-    """取某个会话的历史（按时间正序，最多 MAX_ROUNDS 条）。"""
+    """取某个会话的历史（按时间正序，最多 MAX_ROUNDS 条）。
+
+    注意：这是**回灌给模型**的顺序，不能倒序——倒过来模型会先看到答案
+    再看到问题，指代会乱。展示用的顺序请用 display_turns()。
+    """
     with _LOCK:
         return list(_STORE.get(sid, ()))
+
+
+def display_turns(sid):
+    """给页面展示用：最近一轮在最前面，并带上原始轮次号 no。
+
+    只影响展示，不改动存储顺序，也不影响 turns()。
+    """
+    with _LOCK:
+        items = list(_STORE.get(sid, ()))
+
+    total = len(items)
+    # reversed：最新 -> 最旧；no 保留真实轮次（最新的是第 total 轮）
+    return [dict(turn, no=total - i) for i, turn in enumerate(reversed(items))]
 
 
 def add_turn(sid, question, answer, trace=None, usage=None):

@@ -14,7 +14,7 @@ from agent import run_agent
 from async_tasks import QueueFull, stats as queue_stats, submit as submit_task
 from async_tasks import snapshot as task_snapshot
 from chat_memory import MAX_ROUNDS as MEMORY_ROUNDS
-from chat_memory import add_turn, reset as reset_memory, turns as memory_turns
+from chat_memory import add_turn, display_turns, reset as reset_memory, turns as memory_turns
 from config_store import ensure_runtime_files, get_llm_config, mask_key, save_llm, save_tuning
 from db_operator import DB_list, DEFAULT_PORT, add_db, get_db, get_schema, remove_db
 from schema_store import (
@@ -98,7 +98,8 @@ def index():
         "index.html",
         title="问数 AskDB",
         version=version,
-        turns=memory_turns(_sid()),
+        # 展示用：最近一轮在最上面；回灌给模型的历史仍走 memory_turns（时间正序）
+        turns=display_turns(_sid()),
         max_rounds=MEMORY_ROUNDS,
     )
 

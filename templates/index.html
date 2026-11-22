@@ -106,7 +106,7 @@
 
     <div class="membar">
         <span class="pill">记忆 {{ turns|length }} / {{ max_rounds }} 轮</span>
-        <span>追问时会带上最近 {{ max_rounds }} 轮对话；更早的自动遗忘。</span>
+        <span>追问时会带上最近 {{ max_rounds }} 轮对话；更早的自动遗忘，最新的显示在最上面。</span>
         {% if turns %}
             <form method="post" action="{{ url_for('reset') }}" style="margin-left:auto"
                   onsubmit="return confirm('确定清空这 {{ turns|length }} 轮对话记录？');">
@@ -133,7 +133,7 @@
 
     {% for turn in turns %}
         <div class="card">
-            <div class="turn-no">第 {{ loop.index }} 轮 · {{ turn.time }}</div>
+            <div class="turn-no">第 {{ turn.no }} 轮 · {{ turn.time }}</div>
             <div class="q">{{ turn.q }}</div>
             <div class="a">{{ turn.a }}</div>
 
